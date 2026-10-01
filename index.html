@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#16324F">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="application-name" content="Savings Tracker">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<title>My $1,000 Savings Plan</title>
+<style>
+:root{
+  --navy:#16324F; --blue:#4A90E2; --light:#F4F7FA; --card:#FFFFFF;
+  --text:#17212B; --muted:#667788; --green:#2E7D32; --red:#C62828; --line:#E2E8F0;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:var(--light);color:var(--text)}
+.app{max-width:620px;margin:0 auto;min-height:100vh;padding:env(safe-area-inset-top) 14px calc(90px + env(safe-area-inset-bottom))}
+.header{padding:22px 4px 14px}
+.header h1{font-size:24px;line-height:1.15;margin:0 0 5px}
+.header p{margin:0;color:var(--muted);font-size:14px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.card{background:var(--card);border-radius:16px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,.06);margin-bottom:12px}
+.metric .label{font-size:12px;color:var(--muted);margin-bottom:5px}
+.metric .value{font-size:27px;font-weight:750}
+.metric .small{font-size:12px;color:var(--muted);margin-top:4px}
+.green{color:var(--green)} .red{color:var(--red)}
+.progress{height:9px;background:#E9EEF4;border-radius:20px;overflow:hidden;margin-top:10px}
+.progress span{display:block;height:100%;background:var(--blue);border-radius:20px}
+h2{font-size:17px;margin:2px 0 12px}
+form{display:grid;gap:10px}
+input,select,button{font:inherit}
+input,select{width:100%;padding:14px;border:1px solid var(--line);border-radius:12px;background:white;font-size:16px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+button{border:0;border-radius:12px;padding:14px 16px;font-weight:700;cursor:pointer}
+.primary{background:var(--navy);color:#fff}
+.secondary{background:#E8F0F8;color:var(--navy)}
+.danger{background:#FDECEC;color:var(--red)}
+.chiprow{display:flex;gap:8px;overflow:auto;padding-bottom:2px}
+.chip{white-space:nowrap;background:#EEF3F8;border-radius:999px;padding:9px 12px;font-size:13px}
+.cat{padding:12px 0;border-bottom:1px solid var(--line)}
+.cat:last-child{border-bottom:0}
+.cathead{display:flex;justify-content:space-between;gap:10px;font-size:14px}
+.cathead strong{font-size:14px}
+.catsub{font-size:12px;color:var(--muted);margin-top:3px}
+.txn{display:flex;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.txn:last-child{border-bottom:0}
+.txn .left{min-width:0}
+.txn .name{font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.txn .meta{font-size:12px;color:var(--muted);margin-top:3px}
+.txn .amt{font-weight:750;white-space:nowrap}
+.tabs{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);display:flex;justify-content:center;padding-bottom:env(safe-area-inset-bottom)}
+.tabs .inner{width:100%;max-width:620px;display:grid;grid-template-columns:repeat(4,1fr)}
+.tab{background:#fff;color:var(--muted);padding:12px 4px;font-size:12px;border-radius:0}
+.tab.active{color:var(--navy);font-weight:800}
+.hidden{display:none}
+.note{font-size:12px;color:var(--muted);line-height:1.45}
+.switchline{display:flex;align-items:center;gap:10px;font-size:14px}
+.switchline input{width:auto}
+.section-gap{height:4px}
+.empty{color:var(--muted);font-size:14px;padding:8px 0}
+@media (max-width:380px){.metric .value{font-size:23px}.row{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <h1>My $1,000 Savings Plan</h1>
+    <p id="monthLabel"></p>
+<button id="installBtn" class="secondary" style="display:none;margin-top:12px;padding:10px 14px">Install app</button>
+  </div>
+
+  <section id="homeView">
+    <div class="grid">
+      <div class="card metric">
+        <div class="label">Safe to spend today</div>
+        <div class="value green" id="safeToday">$0</div>
+        <div class="small" id="daysLeft"></div>
+      </div>
+      <div class="card metric">
+        <div class="label">Flexible money left</div>
+        <div class="value" id="flexLeft">$0</div>
+        <div class="small" id="spentSoFar"></div>
+      </div>
+    </div>
+
+    <div class="card metric">
+      <div class="label">Savings goal</div>
+      <div class="value" id="savingsValue">$0 / $1,000</div>
+      <div class="progress"><span id="savingsBar" style="width:0%"></span></div>
+      <div class="small" id="savingsNote">Move $1,000 first, then spend from what remains.</div>
+    </div>
+
+    <div class="card">
+      <h2>Quick add</h2>
+      <form id="quickForm">
+        <div class="row">
+          <input id="qAmount" type="number" min="0" step="0.01" inputmode="decimal" placeholder="$ Amount" required>
+          <select id="qCategory"></select>
+        </div>
+        <input id="qMerchant" type="text" placeholder="Merchant or note">
+        <button class="primary" type="submit">Add expense</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>This week</h2>
+      <div class="grid">
+        <div class="metric"><div class="label">Weekly target</div><div class="value" id="weekTarget">$0</div></div>
+        <div class="metric"><div class="label">Spent this week</div><div class="value" id="weekSpent">$0</div></div>
+      </div>
+      <div class="progress"><span id="weekBar" style="width:0%"></span></div>
+      <p class="note" id="weekMessage"></p>
+    </div>
+  </section>
+
+  <section id="addView" class="hidden">
+    <div class="card">
+      <h2>Add transaction</h2>
+      <form id="addForm">
+        <input id="aDate" type="date" required>
+        <input id="aAmount" type="number" min="0" step="0.01" inputmode="decimal" placeholder="$ Amount" required>
+        <select id="aCategory"></select>
+        <input id="aMerchant" type="text" placeholder="Merchant / note">
+        <div class="row">
+          <select id="aNeedWant">
+            <option value="">Need or want?</option>
+            <option>Need</option>
+            <option>Want</option>
+          </select>
+          <select id="aReimb">
+            <option value="No">Not reimbursable</option>
+            <option value="Yes">Reimbursable</option>
+          </select>
+        </div>
+        <button class="primary" type="submit">Save transaction</button>
+      </form>
+    </div>
+    <div class="card">
+      <h2>Common entries</h2>
+      <div class="chiprow">
+        <button class="chip" data-cat="Groceries">Groceries</button>
+        <button class="chip" data-cat="Dining / coffee / delivery">Dining</button>
+        <button class="chip" data-cat="Shopping">Shopping</button>
+        <button class="chip" data-cat="Health + beauty">Health/Beauty</button>
+        <button class="chip" data-cat="Transportation">Transport</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="budgetView" class="hidden">
+    <div class="card">
+      <h2>Monthly plan</h2>
+      <div class="cat"><div class="cathead"><strong>Take-home pay</strong><span id="incomeDisplay"></span></div></div>
+      <div class="cat"><div class="cathead"><strong>Fixed housing + utilities</strong><span id="fixedDisplay"></span></div></div>
+      <div class="cat"><div class="cathead"><strong>Savings</strong><span>$1,000.00</span></div></div>
+      <div class="cat"><div class="cathead"><strong>Flexible budget</strong><span id="flexDisplay"></span></div></div>
+    </div>
+    <div class="card">
+      <h2>Category balances</h2>
+      <div id="categoryList"></div>
+    </div>
+  </section>
+
+  <section id="historyView" class="hidden">
+    <div class="card">
+      <h2>History</h2>
+      <div id="txnList"></div>
+    </div>
+    <div class="card">
+      <h2>Backup</h2>
+      <div class="row">
+        <button class="secondary" id="exportCsv">Export CSV</button>
+        <button class="secondary" id="backupJson">Backup data</button>
+      </div>
+      <input id="restoreFile" type="file" accept=".json" style="margin-top:10px">
+      <button class="danger" id="resetBtn" style="margin-top:10px;width:100%">Reset all entries</button>
+      <p class="note">Your entries are stored on this device in your browser. Use Backup data occasionally so you have a copy.</p>
+    </div>
+  </section>
+</div>
+
+<nav class="tabs">
+  <div class="inner">
+    <button class="tab active" data-view="homeView">Today</button>
+    <button class="tab" data-view="addView">Add</button>
+    <button class="tab" data-view="budgetView">Budget</button>
+    <button class="tab" data-view="historyView">History</button>
+  </div>
+</nav>
+
+<script>
+const PLAN = {
+  income: 7476.00,
+  fixed: 3273.91,
+  savingsGoal: 1000.00,
+  flexible: 3202.09,
+  categories: {
+    "Groceries": 550,
+    "Dining / coffee / delivery": 400,
+    "Shopping": 300,
+    "Health + beauty": 450,
+    "Services / subscriptions": 150,
+    "Transportation": 125,
+    "Entertainment / misc.": 75,
+    "Travel fund": 500,
+    "Household / irregular": 300,
+    "Cushion": 352.09
+  }
+};
+const FLEX_CATS = Object.keys(PLAN.categories);
+const ALL_CATS = [...FLEX_CATS, "Mortgage", "Property tax", "Utilities", "Savings"];
+const KEY = "aditiSavingsTracker_v1";
+let txns = JSON.parse(localStorage.getItem(KEY) || "[]");
+const money = n => new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(n||0);
+
+function localDateStr(d=new Date()){
+  const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+function monthKey(d=new Date()){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; }
+function currentMonthTxns(){ const mk=monthKey(); return txns.filter(t=>t.date && t.date.startsWith(mk)); }
+function flexibleTxns(){ return currentMonthTxns().filter(t=>FLEX_CATS.includes(t.category) && t.reimbursable!=="Yes"); }
+function spent(cat){ return flexibleTxns().filter(t=>t.category===cat).reduce((s,t)=>s+Number(t.amount),0); }
+function savingsLogged(){ return currentMonthTxns().filter(t=>t.category==="Savings").reduce((s,t)=>s+Number(t.amount),0); }
+
+function weekBounds(d=new Date()){
+  const day=d.getDate();
+  let start=1,end=7;
+  if(day<=7){start=1;end=7}
+  else if(day<=14){start=8;end=14}
+  else if(day<=21){start=15;end=21}
+  else if(day<=28){start=22;end=28}
+  else {start=29; end=new Date(d.getFullYear(),d.getMonth()+1,0).getDate()}
+  return {start,end};
+}
+function render(){
+  const now=new Date();
+  document.getElementById("monthLabel").textContent = now.toLocaleDateString("en-US",{month:"long",year:"numeric"});
+  document.getElementById("incomeDisplay").textContent=money(PLAN.income);
+  document.getElementById("fixedDisplay").textContent=money(PLAN.fixed);
+  document.getElementById("flexDisplay").textContent=money(PLAN.flexible);
+
+  const flexSpent=flexibleTxns().reduce((s,t)=>s+Number(t.amount),0);
+  const left=Math.max(0,PLAN.flexible-flexSpent);
+  const dim=new Date(now.getFullYear(),now.getMonth()+1,0).getDate();
+  const remainingDays=Math.max(1,dim-now.getDate()+1);
+  const safe=left/remainingDays;
+  document.getElementById("safeToday").textContent=money(safe);
+  document.getElementById("flexLeft").textContent=money(left);
+  document.getElementById("spentSoFar").textContent=`${money(flexSpent)} spent so far`;
+  document.getElementById("daysLeft").textContent=`${remainingDays} day${remainingDays===1?"":"s"} left`;
+
+  const sav=savingsLogged();
+  document.getElementById("savingsValue").textContent=`${money(sav)} / ${money(PLAN.savingsGoal)}`;
+  document.getElementById("savingsBar").style.width=`${Math.min(100,(sav/PLAN.savingsGoal)*100)}%`;
+  document.getElementById("savingsNote").textContent = sav>=PLAN.savingsGoal ? "Savings goal funded for this month." : `${money(PLAN.savingsGoal-sav)} still to move to savings.`;
+
+  // week
+  const {start,end}=weekBounds(now);
+  const mk=monthKey(now);
+  const weekSpend=flexibleTxns().filter(t=>{
+    const day=Number(t.date.slice(-2)); return day>=start && day<=end;
+  }).reduce((s,t)=>s+Number(t.amount),0);
+  const weeklyTarget = (PLAN.flexible / dim) * (end-start+1);
+  document.getElementById("weekTarget").textContent=money(weeklyTarget);
+  document.getElementById("weekSpent").textContent=money(weekSpend);
+  document.getElementById("weekBar").style.width=`${Math.min(100,(weekSpend/weeklyTarget)*100)}%`;
+  document.getElementById("weekMessage").textContent = weekSpend<=weeklyTarget
+    ? `${money(weeklyTarget-weekSpend)} left in this week's flexible target.`
+    : `${money(weekSpend-weeklyTarget)} over this week's target.`;
+
+  // category list
+  const catList=document.getElementById("categoryList");
+  catList.innerHTML="";
+  FLEX_CATS.forEach(cat=>{
+    const cap=PLAN.categories[cat], used=spent(cat), rem=cap-used, pct=Math.min(100,(used/cap)*100);
+    const div=document.createElement("div");
+    div.className="cat";
+    div.innerHTML=`<div class="cathead"><strong>${cat}</strong><span class="${rem<0?'red':''}">${money(rem)} left</span></div>
+    <div class="catsub">${money(used)} of ${money(cap)}</div>
+    <div class="progress"><span style="width:${pct}%"></span></div>`;
+    catList.appendChild(div);
+  });
+
+  // history
+  const list=document.getElementById("txnList");
+  list.innerHTML="";
+  const month=currentMonthTxns().slice().sort((a,b)=>(b.date+b.id).localeCompare(a.date+a.id));
+  if(!month.length){list.innerHTML='<div class="empty">No entries yet.</div>'}
+  month.forEach(t=>{
+    const d=document.createElement("div"); d.className="txn";
+    d.innerHTML=`<div class="left"><div class="name">${t.merchant||t.category}</div>
+      <div class="meta">${t.date} · ${t.category}${t.reimbursable==="Yes"?" · reimbursable":""}</div></div>
+      <div class="amt">${money(t.amount)}</div>`;
+    d.addEventListener("click",()=>{ if(confirm("Delete this entry?")){txns=txns.filter(x=>x.id!==t.id);save();render();}});
+    list.appendChild(d);
+  });
+}
+function save(){localStorage.setItem(KEY,JSON.stringify(txns));}
+function addTxn(data){ txns.push({...data,id:Date.now().toString()+Math.random().toString(16).slice(2)}); save(); render(); }
+
+function populateSelect(id){
+  const s=document.getElementById(id); s.innerHTML="";
+  ALL_CATS.forEach(c=>{const o=document.createElement("option");o.value=c;o.textContent=c;s.appendChild(o)});
+}
+populateSelect("qCategory"); populateSelect("aCategory");
+document.getElementById("aDate").value=localDateStr();
+
+document.getElementById("quickForm").addEventListener("submit",e=>{
+  e.preventDefault();
+  addTxn({date:localDateStr(),amount:+qAmount.value,category:qCategory.value,merchant:qMerchant.value.trim(),needWant:"",reimbursable:"No"});
+  e.target.reset(); populateSelect("qCategory");
+});
+document.getElementById("addForm").addEventListener("submit",e=>{
+  e.preventDefault();
+  addTxn({date:aDate.value,amount:+aAmount.value,category:aCategory.value,merchant:aMerchant.value.trim(),needWant:aNeedWant.value,reimbursable:aReimb.value});
+  aAmount.value=""; aMerchant.value=""; aNeedWant.value=""; aReimb.value="No"; aDate.value=localDateStr();
+});
+document.querySelectorAll(".chip").forEach(b=>b.addEventListener("click",()=>{aCategory.value=b.dataset.cat;aAmount.focus()}));
+document.querySelectorAll(".tab").forEach(b=>b.addEventListener("click",()=>{
+  document.querySelectorAll("section").forEach(s=>s.classList.add("hidden"));
+  document.getElementById(b.dataset.view).classList.remove("hidden");
+  document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active")); b.classList.add("active"); render();
+}));
+
+document.getElementById("exportCsv").addEventListener("click",()=>{
+  const rows=[["Date","Merchant","Category","Amount","Need/Want","Reimbursable"],...txns.map(t=>[t.date,t.merchant,t.category,t.amount,t.needWant,t.reimbursable])];
+  const csv=rows.map(r=>r.map(v=>`"${String(v??"").replaceAll('"','""')}"`).join(",")).join("\n");
+  download("spending.csv",csv,"text/csv");
+});
+document.getElementById("backupJson").addEventListener("click",()=>download("savings-tracker-backup.json",JSON.stringify(txns,null,2),"application/json"));
+document.getElementById("restoreFile").addEventListener("change",async e=>{
+  const f=e.target.files[0]; if(!f)return;
+  try{const data=JSON.parse(await f.text()); if(Array.isArray(data)){txns=data;save();render();alert("Backup restored.");}}
+  catch{alert("That backup file could not be read.");}
+});
+document.getElementById("resetBtn").addEventListener("click",()=>{
+  if(confirm("Delete all saved entries from this tracker?")){txns=[];save();render();}
+});
+function download(name,text,type){
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();URL.revokeObjectURL(a.href);
+}
+render();
+
+let deferredInstallPrompt = null;
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  const b = document.getElementById("installBtn");
+  if (b) b.style.display = "inline-block";
+});
+document.getElementById("installBtn").addEventListener("click", async () => {
+  if (!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  await deferredInstallPrompt.userChoice;
+  deferredInstallPrompt = null;
+  document.getElementById("installBtn").style.display = "none";
+});
+window.addEventListener("appinstalled", () => {
+  const b = document.getElementById("installBtn");
+  if (b) b.style.display = "none";
+});
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js"));
+}
+
+</script>
+</body>
+</html>
